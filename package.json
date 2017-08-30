@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "axios": "^0.16.2",
-    "date-fns": "^1.28.5"
+    "date-fns": "^1.28.5",
+    "progress": "^2.0.0"
   }
 }
