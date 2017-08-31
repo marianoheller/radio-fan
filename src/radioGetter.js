@@ -1,6 +1,8 @@
 var axios = require('axios');
 var fs = require('fs');
 var ProgressBar = require('progress');
+var audioconcat = require('audioconcat')
+
 var addHours = require('date-fns/add_hours');
 var getTime = require('date-fns/get_time');
 var getDate = require('date-fns/get_date');
@@ -9,8 +11,8 @@ var getYear = require('date-fns/get_year')
 
 
 const tempDir = "./temp";
-const targetDate = "150409";
-const radioChannel = "metro951";
+const programDir = "./audio"
+
 
 
 const getChunksInfo = function( timestamp, radioChannel ) {
@@ -34,35 +36,74 @@ const getChunksInfo = function( timestamp, radioChannel ) {
 	})
 }
 
-const getChunk = function( filename, baseUrl, destDir ) {
-	const targetURL = `${baseUrl}/${filename}`;
 
-	axios.get( targetURL )
-	.then( (response) => {
+const getFiles = function( urls, destDir ) {
 
+	/*
+	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
+	console.log(`Downloading chunks`);
+	var bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
+
+	urls.forEach( (url) => {
+		const filename = url.split("/").pop();
 		const pathToFile = `${destDir}/${filename}`;
-		if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
 
-		fs.writeFile( pathToFile, response.data, (err) => {
-			if (err) throw err;
-		});
+		axios.get(url)
+		.then( (response) => {
+			fs.writeFile( pathToFile, response.data, (err) => {
+				if (err) throw err;
+				bar.tick();
+			});
+		})
+		.catch( (e) => {
+			throw new Error(e);
+		})
+	});
+	*/
+	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
+	const bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
+	const requestsArray = urls.map( (url) => axios.get(url).then( (response) => {
+		bar.tick();
+		return response;
+	}) );
+
+	return axios.all( requestsArray )
+	.then( (responses) => {
+		console.log("Saving files")
+		const bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
+		return Promise.all( responses.map( (response) => {
+			const filename = response.request.path.split("/").pop();
+			const pathToFile = `${destDir}/${filename}`;
+			return new Promise( function(resolve, reject) {
+		            fs.writeFile( pathToFile, response.data,{ mode: 0o777 },  (err) => {
+						if (err) reject(err);
+						bar.tick();
+						resolve(pathToFile);
+					});
+		    });
+		}) )
 	} )
 	.catch( (e) => {
 		throw new Error(e);
 	})
+
 }
 
-const getFiles = function( urls, destDir ) {
-	const requestsArray = urls.map( (url) => axios.get(url) );
-
-	axios.all( requestsArray )
-	.then( (responses) => {
-		if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
-		console.log(responses);
-	}) 
-	.catch( (e) => {
-		throw new Error(e);
-	})
+const mergeChunks = function(chunkList, filename, destDir) {
+	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
+	if ( filename.slice(-4) !== ".mp3" ) filename += ".mp3";
+	audioconcat( chunkList )
+		.concat(`${destDir}/${filename}`)
+		.on('start', function (command) {
+			console.log('ffmpeg process started:', command)
+		})
+		.on('error', function (err, stdout, stderr) {
+			console.error('Error:', err)
+			console.error('ffmpeg stderr:', stderr)
+		})
+		.on('end', function (output) {
+			console.error('Audio created in:', output)
+		})
 }
 
 
@@ -84,15 +125,21 @@ const getRadioProgram = function( { radioChannel, startHour, endHour, emissionDa
 		chunksTimestamp.push(i);
 	}
 
-	getChunksInfo( chunksTimestamp, radioChannel )
+	return getChunksInfo( chunksTimestamp, radioChannel )
 	.then( (datas) => {
+		let count = 0;
 		//Filter chunks not in true time interval
-		return datas.map( (data) => {
+		const filtered =  datas.map( (data) => {
 			const key = data.timestamp;
-			const newChunks = data[key].chunks.filter( (c) => c.start > secStart && c.start < secEnd );
+			const newChunks = data[key].chunks.filter( (c) => {
+				count++;
+				return c.start > secStart && c.start < secEnd;
+			} );
 			data[key].chunks = newChunks;
 			return data;
 		});
+		console.log(`Got ${count} chunks`);
+		return filtered;
 	})
 	.then( (datas) => {
 		//Parse file urls to array
@@ -105,7 +152,11 @@ const getRadioProgram = function( { radioChannel, startHour, endHour, emissionDa
 		}, [] );
 	})
 	.then( (urls) => {
-		getFiles(urls, tempDir);
+		console.log(`Filtered to ${urls.length} chunks`);
+		return getFiles(urls, tempDir);
+	})
+	.then( (logs) => {
+		mergeChunks(logs, fileDest, programDir);
 	})
 	.catch( (e) => {
 		console.log(e);
@@ -114,9 +165,9 @@ const getRadioProgram = function( { radioChannel, startHour, endHour, emissionDa
 
 
 getRadioProgram( {
-	radioChannel: radioChannel, 
+	radioChannel: "metro951", 
 	startHour: 9,
 	endHour: 13,
-	emissionDate: new Date(),
+	emissionDate: new Date(2017,7,30),
 });
 
