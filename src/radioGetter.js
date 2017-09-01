@@ -14,7 +14,6 @@ const tempDir = "./temp";
 const programDir = "./audio"
 
 
-
 const getChunksInfo = function( timestamp, radioChannel ) {
 	const chunkServerUrl = `https://chunkserver.radiocut.fm/server/get_chunks`;
 	const requestsArray = [];
@@ -38,8 +37,8 @@ const getChunksInfo = function( timestamp, radioChannel ) {
 
 
 const getFiles = function( urls, destDir ) {
-
 	
+	/*
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
 	console.log(`Downloading chunks`);
 	var bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
@@ -60,8 +59,9 @@ const getFiles = function( urls, destDir ) {
 			throw new Error(e);
 		})
 	});
+	*/
 	
-	/*
+
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
 	const bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
 	const requestsArray = urls.map( (url) => axios.get(url).then( (response) => {
@@ -88,7 +88,6 @@ const getFiles = function( urls, destDir ) {
 	.catch( (e) => {
 		throw new Error(e);
 	})
-	*/
 
 }
 
