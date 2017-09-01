@@ -39,7 +39,7 @@ const getChunksInfo = function( timestamp, radioChannel ) {
 
 const getFiles = function( urls, destDir ) {
 
-	/*
+	
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
 	console.log(`Downloading chunks`);
 	var bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
@@ -56,10 +56,12 @@ const getFiles = function( urls, destDir ) {
 			});
 		})
 		.catch( (e) => {
+			console.log("Error url: ", url);
 			throw new Error(e);
 		})
 	});
-	*/
+	
+	/*
 	if (!fs.existsSync(destDir)) fs.mkdirSync(destDir);
 	const bar = new ProgressBar('[:bar] :current/:total :etas', { total: urls.length });
 	const requestsArray = urls.map( (url) => axios.get(url).then( (response) => {
@@ -86,6 +88,7 @@ const getFiles = function( urls, destDir ) {
 	.catch( (e) => {
 		throw new Error(e);
 	})
+	*/
 
 }
 
@@ -155,9 +158,9 @@ const getRadioProgram = function( { radioChannel, startHour, endHour, emissionDa
 		console.log(`Filtered to ${urls.length} chunks`);
 		return getFiles(urls, tempDir);
 	})
-	.then( (logs) => {
+	/* .then( (logs) => {
 		mergeChunks(logs, fileDest, programDir);
-	})
+	}) */
 	.catch( (e) => {
 		console.log(e);
 	})
